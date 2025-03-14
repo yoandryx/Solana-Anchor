@@ -54,6 +54,7 @@ impl<'info> Cancel<'info> {
         )?;
 
         close_account(self.into_close_context().with_signer(&signer_seeds))
+
     }
 
     fn into_refund_context(&self) -> CpiContext<'_, '_, '_, 'info, TransferChecked<'info>> {

@@ -79,6 +79,7 @@ impl<'info> Exchange<'info> {
         )?;
 
         close_account(self.into_close_context().with_signer(&signer_seeds))
+
     }
 
     fn into_deposit_context(&self) -> CpiContext<'_, '_, '_, 'info, TransferChecked<'info>> {

@@ -21,15 +21,15 @@ pub struct Initialize<'info> {
     )]
     pub initializer_ata_a: Account<'info, TokenAccount>,
     #[account(
-        init_if_needed,
+        init, // Use init to force creation and initialization
         payer = initializer,
         space = Escrow::INIT_SPACE,
-        seeds = [b"state".as_ref(), &seed.to_le_bytes()],
+        seeds = [b"state", seed.to_le_bytes().as_ref()],
         bump
     )]
     pub escrow: Account<'info, Escrow>,
     #[account(
-        init_if_needed,
+        init, // Similarly create the vault anew
         payer = initializer,
         associated_token::mint = mint_a,
         associated_token::authority = escrow
@@ -47,6 +47,7 @@ impl<'info> Initialize<'info> {
         bumps: &InitializeBumps,
         initializer_amount: u64,
         taker_amount: u64,
+        file_cid: String,
     ) -> Result<()> {
         self.escrow.set_inner(Escrow {
             seed,
@@ -56,6 +57,7 @@ impl<'info> Initialize<'info> {
             mint_b: self.mint_b.key(),
             initializer_amount,
             taker_amount,
+            file_cid,
         });
         Ok(())
     }

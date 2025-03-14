@@ -4,6 +4,7 @@ use contexts::*;
 mod states;
 
 declare_id!("8667Wxa5U1LEviLgx8WedQPVH4PfnCfYGYYvHmeuZBUB");
+
 #[program]
 pub mod anchor_escrow {
     use super::*;
@@ -13,9 +14,10 @@ pub mod anchor_escrow {
         seed: u64,
         initializer_amount: u64,
         taker_amount: u64,
+        file_cid: String,
     ) -> Result<()> {
         ctx.accounts
-            .initialize_escrow(seed, &ctx.bumps, initializer_amount, taker_amount)?;
+            .initialize_escrow(seed, &ctx.bumps, initializer_amount, taker_amount, file_cid)?;
         ctx.accounts.deposit(initializer_amount)
     }
 
