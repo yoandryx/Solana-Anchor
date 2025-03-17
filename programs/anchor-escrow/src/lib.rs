@@ -3,7 +3,7 @@ mod contexts;
 use contexts::*;
 mod states;
 
-declare_id!("8667Wxa5U1LEviLgx8WedQPVH4PfnCfYGYYvHmeuZBUB");
+declare_id!("XtrUX3s6gZhyKJputkH19UEfHNgbjed1sZPJUg5moi1");
 
 #[program]
 pub mod anchor_escrow {
@@ -16,8 +16,7 @@ pub mod anchor_escrow {
         taker_amount: u64,
         file_cid: String,
     ) -> Result<()> {
-        ctx.accounts
-            .initialize_escrow(seed, &ctx.bumps, initializer_amount, taker_amount, file_cid)?;
+        ctx.accounts.initialize_escrow(seed, &ctx.bumps, initializer_amount, taker_amount, file_cid)?;
         ctx.accounts.deposit(initializer_amount)
     }
 
@@ -28,5 +27,15 @@ pub mod anchor_escrow {
     pub fn exchange(ctx: Context<Exchange>) -> Result<()> {
         ctx.accounts.deposit()?;
         ctx.accounts.withdraw_and_close_vault()
+    }
+
+    pub fn add_admin(ctx: Context<AddAdmin>) -> Result<()> {
+        // Note: we call the handler defined in contexts/add_list.rs
+        contexts::add_list::add_admin(ctx)
+    }
+
+    pub fn mint_nft(ctx: Context<MintNFT>) -> Result<()> {
+        // Call the mint_nft handler.
+        contexts::mint_nft::mint_nft(ctx)
     }
 }
