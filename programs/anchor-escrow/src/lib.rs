@@ -3,11 +3,15 @@ mod contexts;
 use contexts::*;
 mod states;
 
-declare_id!("XtrUX3s6gZhyKJputkH19UEfHNgbjed1sZPJUg5moi1");
+declare_id!("CnKvnk5YmxWoLhb9zbf7at1vCCEH2eNhkGwfXecJEK21");
 
 #[program]
 pub mod anchor_escrow {
     use super::*;
+
+    pub fn init_admin_list(ctx: Context<InitAdminList>) -> Result<()> {
+        contexts::init_admin::init_admin_list(ctx)
+    }    
 
     pub fn initialize(
         ctx: Context<Initialize>,
