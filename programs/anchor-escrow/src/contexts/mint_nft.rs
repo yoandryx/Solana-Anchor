@@ -18,8 +18,9 @@ pub struct MintNFT<'info> {
     #[account(
         init, 
         payer = admin,
-        mint::decimals = 0,         // NFT: no decimals
-        mint::authority = admin      // Set admin as mint authority (or later change to a PDA)
+        mint::decimals = 0, 
+        mint::authority = admin, 
+        mint::freeze_authority = admin
     )]
     pub nft_mint: Account<'info, Mint>,
     #[account(
