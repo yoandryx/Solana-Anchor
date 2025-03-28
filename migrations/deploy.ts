@@ -2,7 +2,7 @@
 // single deploy script that's invoked from the CLI, injecting a provider
 // configured from the workspace's Anchor.toml.
 
-const anchor = require("@project-serum/anchor");
+import anchor from "@project-serum/anchor";
 import { Provider } from "@coral-xyz/anchor";
 
 // Explicitly define the type of provider as `Provider`

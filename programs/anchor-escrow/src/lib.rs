@@ -42,4 +42,11 @@ pub mod anchor_escrow {
         // Call the mint_nft handler.
         contexts::mint_nft::mint_nft(ctx)
     }
+
+    pub fn restricted_transfer_instruction(
+        ctx: Context<RestrictedTransfer>,
+        amount: u64,
+    ) -> Result<()> {
+        restricted_transfer(ctx, amount)
+    }
 }

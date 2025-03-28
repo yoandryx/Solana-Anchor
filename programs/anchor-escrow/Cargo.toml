@@ -1,6 +1,6 @@
 [package]
 description = "Created with Anchor"
-edition = "2018"
+edition = "2021"
 name = "anchor-escrow"
 version = "0.1.0"
 
@@ -9,8 +9,8 @@ crate-type = ["cdylib", "lib"]
 name = "anchor_escrow"
 
 [features]
-cpi = ["no-entrypoint"]
 default = []
+cpi = []
 no-entrypoint = []
 no-idl = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
@@ -18,3 +18,4 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 [dependencies]
 anchor-lang = { version = "0.31.0", features = ["init-if-needed"] }
 anchor-spl = "0.31.0"
+solana-address-lookup-table-interface = { version = "2.2.1" }
