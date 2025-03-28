@@ -6,12 +6,12 @@ use crate::states::admin_list::AdminList;
 #[derive(Accounts)]
 pub struct RestrictedTransfer<'info> {
     /// CHECK: Verified in logic that this pubkey is in AdminList
-    #[account(mut)]
-    pub admin_list: Account<'info, AdminList>,
-
-    /// CHECK: This is the admin account, verified in the logic to be in AdminList.
-    #[account(mut, signer)]
+    #[account(mut,signer)]
     pub admin: AccountInfo<'info>,
+
+    #[account(mut)]
+    // If you prefer storing admin_list in some state, or pass it directly, see below.
+    pub admin_list: Account<'info, AdminList>,
 
     // The mint of the NFT we are transferring
     #[account(mut)]
