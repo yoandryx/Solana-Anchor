@@ -7,7 +7,7 @@ use anchor_spl::{
 use crate::states::Escrow;
 
 #[derive(Accounts)]
-#[instruction(seed: u64, initializer_amount: u64)]
+#[instruction(seed: u64, initializer_amount: u64, taker_amount: u64, luxhub_wallet: Pubkey)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub initializer: Signer<'info>,
@@ -21,7 +21,7 @@ pub struct Initialize<'info> {
     )]
     pub initializer_ata_a: Account<'info, TokenAccount>,
     #[account(
-        init, // Use init to force creation and initialization
+        init, 
         payer = initializer,
         space = Escrow::INIT_SPACE,
         seeds = [b"state", seed.to_le_bytes().as_ref()],
@@ -29,7 +29,7 @@ pub struct Initialize<'info> {
     )]
     pub escrow: Account<'info, Escrow>,
     #[account(
-        init, // Similarly create the vault anew
+        init, 
         payer = initializer,
         associated_token::mint = mint_a,
         associated_token::authority = escrow
@@ -40,19 +40,22 @@ pub struct Initialize<'info> {
     pub system_program: Program<'info, System>,
 }
 
+// Note: If you already have a bumps struct defined (e.g. InitializeBumps), adjust accordingly.
 impl<'info> Initialize<'info> {
     pub fn initialize_escrow(
         &mut self,
         seed: u64,
-        bumps: &InitializeBumps,
+        bumps: &InitializeBumps, // assuming you have a bumps struct; if not, remove this argument
         initializer_amount: u64,
         taker_amount: u64,
         file_cid: String,
+        luxhub_wallet: Pubkey,
     ) -> Result<()> {
         self.escrow.set_inner(Escrow {
             seed,
             bump: bumps.escrow,
             initializer: self.initializer.key(),
+            luxhub_wallet, // set the LuxHub wallet here
             mint_a: self.mint_a.key(),
             mint_b: self.mint_b.key(),
             initializer_amount,

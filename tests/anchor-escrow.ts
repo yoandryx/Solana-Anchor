@@ -11,7 +11,8 @@ import {
   getMinimumBalanceForRentExemptMint,
 } from "@solana/spl-token";
 import { randomBytes } from "crypto";
-import BN from "bn.js";
+// import BN from "bn.js";
+import { BN }from "@coral-xyz/anchor";
 
 describe("anchor-escrow", () => {
   let anchorModule: any;

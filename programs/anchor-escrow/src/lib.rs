@@ -13,14 +13,23 @@ pub mod anchor_escrow {
         contexts::init_admin::init_admin_list(ctx)
     }    
 
+    pub fn initialize_escrow_config(ctx: Context<InitializeEscrowConfig>, luxhub_wallet: Pubkey) -> Result<()> {
+        contexts::escrow_config::initialize_escrow_config(ctx, luxhub_wallet)
+    }
+
+    pub fn update_escrow_config(ctx: Context<UpdateEscrowConfig>, new_luxhub_wallet: Pubkey) -> Result<()> {
+        contexts::escrow_config::update_escrow_config(ctx, new_luxhub_wallet)
+    }
+
     pub fn initialize(
         ctx: Context<Initialize>,
         seed: u64,
         initializer_amount: u64,
         taker_amount: u64,
         file_cid: String,
+        luxhub_wallet: Pubkey
     ) -> Result<()> {
-        ctx.accounts.initialize_escrow(seed, &ctx.bumps, initializer_amount, taker_amount, file_cid)?;
+        ctx.accounts.initialize_escrow(seed, &ctx.bumps, initializer_amount, taker_amount, file_cid, luxhub_wallet)?;
         ctx.accounts.deposit(initializer_amount)
     }
 
@@ -34,13 +43,15 @@ pub mod anchor_escrow {
     }
 
     pub fn add_admin(ctx: Context<AddAdmin>) -> Result<()> {
-        // Note: we call the handler defined in contexts/add_list.rs
         contexts::add_list::add_admin(ctx)
     }
 
     pub fn mint_nft(ctx: Context<MintNFT>) -> Result<()> {
-        // Call the mint_nft handler.
         contexts::mint_nft::mint_nft(ctx)
+    }
+    
+    pub fn confirm_delivery(ctx: Context<ConfirmDelivery>) -> Result<()> {
+        contexts::exchange::confirm_delivery(ctx)
     }
 
     pub fn restricted_transfer_instruction(

@@ -12,3 +12,5 @@ pub mod mint_nft;
 pub use mint_nft::*;
 pub mod transfer;
 pub use transfer::*;
+pub mod escrow_config;
+pub use escrow_config::*;
