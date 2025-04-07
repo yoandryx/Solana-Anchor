@@ -21,17 +21,30 @@ pub mod anchor_escrow {
         contexts::escrow_config::update_escrow_config(ctx, new_luxhub_wallet)
     }
 
+    // Updated initialize function now accepts an extra parameter: sale_price.
     pub fn initialize(
         ctx: Context<Initialize>,
         seed: u64,
         initializer_amount: u64,
         taker_amount: u64,
         file_cid: String,
-        luxhub_wallet: Pubkey
+        luxhub_wallet: Pubkey,
+        sale_price: u64
     ) -> Result<()> {
-        ctx.accounts.initialize_escrow(seed, &ctx.bumps, initializer_amount, taker_amount, file_cid, luxhub_wallet)?;
-        ctx.accounts.deposit(initializer_amount)
+        // Call the initialize_escrow method to set up the escrow account.
+        ctx.accounts.initialize_escrow(
+            seed,
+            &ctx.bumps,
+            initializer_amount,
+            taker_amount,
+            file_cid,
+            luxhub_wallet,
+            sale_price
+        )?;
+        // Removed the deposit() call since no fund transfer should occur during listing.
+        Ok(())
     }
+    
 
     pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
         ctx.accounts.refund_and_close_vault()

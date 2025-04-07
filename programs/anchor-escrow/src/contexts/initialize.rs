@@ -1,36 +1,47 @@
+// initialize.rs
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{transfer_checked, Mint, Token, TokenAccount, TransferChecked},
+    token::{Mint, Token, TokenAccount}
 };
-
 use crate::states::Escrow;
 
 #[derive(Accounts)]
-#[instruction(seed: u64, initializer_amount: u64, taker_amount: u64, luxhub_wallet: Pubkey)]
+#[instruction(
+    seed: u64,
+    initializer_amount: u64,
+    taker_amount: u64,
+    file_cid: String,
+    luxhub_wallet: Pubkey,
+    sale_price: u64
+)]
 pub struct Initialize<'info> {
+    // The admin is the signer who pays for the account creation.
     #[account(mut)]
-    pub initializer: Signer<'info>,
+    pub admin: Signer<'info>,
+    // The seller’s public key is passed in (not a signer).
+    /// CHECK: Seller’s account is only used for its public key.
+    pub seller: AccountInfo<'info>,
     pub mint_a: Account<'info, Mint>,
     pub mint_b: Account<'info, Mint>,
     #[account(
         mut,
-        constraint = initializer_ata_a.amount >= initializer_amount,
+        // Use the seller’s public key as authority.
         associated_token::mint = mint_a,
-        associated_token::authority = initializer
+        associated_token::authority = seller
     )]
-    pub initializer_ata_a: Account<'info, TokenAccount>,
+    pub seller_ata_a: Account<'info, TokenAccount>,
     #[account(
-        init, 
-        payer = initializer,
+        init,
+        payer = admin,
         space = Escrow::INIT_SPACE,
         seeds = [b"state", seed.to_le_bytes().as_ref()],
         bump
     )]
     pub escrow: Account<'info, Escrow>,
     #[account(
-        init, 
-        payer = initializer,
+        init,
+        payer = admin,
         associated_token::mint = mint_a,
         associated_token::authority = escrow
     )]
@@ -38,48 +49,33 @@ pub struct Initialize<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
-// Note: If you already have a bumps struct defined (e.g. InitializeBumps), adjust accordingly.
 impl<'info> Initialize<'info> {
     pub fn initialize_escrow(
         &mut self,
         seed: u64,
-        bumps: &InitializeBumps, // assuming you have a bumps struct; if not, remove this argument
+        bumps: &InitializeBumps, // Assume you have a bumps struct defined
         initializer_amount: u64,
         taker_amount: u64,
         file_cid: String,
         luxhub_wallet: Pubkey,
+        sale_price: u64
     ) -> Result<()> {
-        self.escrow.set_inner(Escrow {
-            seed,
-            bump: bumps.escrow,
-            initializer: self.initializer.key(),
-            luxhub_wallet, // set the LuxHub wallet here
-            mint_a: self.mint_a.key(),
-            mint_b: self.mint_b.key(),
-            initializer_amount,
-            taker_amount,
-            file_cid,
-        });
+        // Set the escrow fields.
+        self.escrow.seed = seed;
+        self.escrow.bump = bumps.escrow;
+        // Use the seller's public key (not the admin) as the "initializer" in escrow.
+        self.escrow.initializer = self.seller.key();
+        self.escrow.luxhub_wallet = luxhub_wallet;
+        self.escrow.mint_a = self.mint_a.key();
+        self.escrow.mint_b = self.mint_b.key();
+        self.escrow.initializer_amount = initializer_amount;
+        self.escrow.taker_amount = taker_amount;
+        self.escrow.file_cid = file_cid;
+        self.escrow.sale_price = sale_price; // sale price in lamports
         Ok(())
     }
-
-    pub fn deposit(&mut self, initializer_amount: u64) -> Result<()> {
-        transfer_checked(
-            self.into_deposit_context(),
-            initializer_amount,
-            self.mint_a.decimals,
-        )
-    }
-
-    fn into_deposit_context(&self) -> CpiContext<'_, '_, '_, 'info, TransferChecked<'info>> {
-        let cpi_accounts = TransferChecked {
-            from: self.initializer_ata_a.to_account_info(),
-            mint: self.mint_a.to_account_info(),
-            to: self.vault.to_account_info(),
-            authority: self.initializer.to_account_info(),
-        };
-        CpiContext::new(self.token_program.to_account_info(), cpi_accounts)
-    }
+    // Note: We remove the deposit() call so that no fund transfer is attempted during escrow creation.
 }
