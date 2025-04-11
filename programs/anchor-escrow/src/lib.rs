@@ -1,9 +1,16 @@
+// lib.rs
 use anchor_lang::prelude::*;
 mod contexts;
 use contexts::*;
 mod states;
 
 declare_id!("GRE7cbpBscopx6ygmCvhPqMNEUDWtu9gBVSzNMSPWkLX");
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Calculation error.")]
+    CalculationError,
+}
 
 #[program]
 pub mod anchor_escrow {
@@ -21,7 +28,7 @@ pub mod anchor_escrow {
         contexts::escrow_config::update_escrow_config(ctx, new_luxhub_wallet)
     }
 
-    // Updated initialize function now accepts an extra parameter: sale_price.
+    // The initialize instruction now extracts the escrow bump directly from the generated bumps struct.
     pub fn initialize(
         ctx: Context<Initialize>,
         seed: u64,
@@ -29,23 +36,23 @@ pub mod anchor_escrow {
         taker_amount: u64,
         file_cid: String,
         luxhub_wallet: Pubkey,
-        sale_price: u64
+        sale_price: u64,
     ) -> Result<()> {
-        // Call the initialize_escrow method to set up the escrow account.
+        // Directly access the escrow bump from the bumps struct.
+        let bump = ctx.bumps.escrow;
         ctx.accounts.initialize_escrow(
             seed,
-            &ctx.bumps,
+            bump,
             initializer_amount,
             taker_amount,
             file_cid,
             luxhub_wallet,
-            sale_price
+            sale_price,
         )?;
-        // Removed the deposit() call since no fund transfer should occur during listing.
+        // No deposit() call is made here.
         Ok(())
     }
     
-
     pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
         ctx.accounts.refund_and_close_vault()
     }
