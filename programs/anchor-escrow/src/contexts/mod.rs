@@ -14,3 +14,5 @@ pub mod transfer;
 pub use transfer::*;
 pub mod escrow_config;
 pub use escrow_config::*;
+pub mod confirm_delivery;
+pub use confirm_delivery::*;

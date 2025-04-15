@@ -23,23 +23,16 @@ pub struct AddAdmin<'info> {
 
 pub fn add_admin(ctx: Context<AddAdmin>) -> Result<()> {
     let admin_list = &mut ctx.accounts.admin_list;
-  
-    // ✅ Verify the signer is already an admin.
     require!(
         admin_list.admins.contains(&ctx.accounts.admin.key()),
         CustomError::Unauthorized
     );
-
-    // ✅ Enforce maximum number of admins.
     require!(
         admin_list.admins.len() < AdminList::MAX_ADMINS,
         CustomError::AdminListFull
     );
-
-    // ✅ Add new admin only if not already present.
     if !admin_list.admins.contains(&ctx.accounts.new_admin.key()) {
         admin_list.admins.push(ctx.accounts.new_admin.key());
     }
-
     Ok(())
 }

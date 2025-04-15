@@ -13,7 +13,7 @@ pub struct InitializeEscrowConfig<'info> {
     )]
     pub escrow_config: Account<'info, EscrowConfig>,
     #[account(mut, signer)]
-    /// CHECK: This account is only used for signing and no data is read from it.
+    /// CHECK: This account is only used for signing.
     pub admin: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
@@ -28,20 +28,17 @@ pub fn initialize_escrow_config(ctx: Context<InitializeEscrowConfig>, luxhub_wal
 pub struct UpdateEscrowConfig<'info> {
     #[account(mut, seeds = [b"escrow_config"], bump)]
     pub escrow_config: Account<'info, EscrowConfig>,
-    // Require that the signer is an admin.
     #[account(mut, signer)]
-    /// CHECK: This account is only used for signing and is trusted.
+    /// CHECK: This account is used for signing.
     pub admin: AccountInfo<'info>,
     pub admin_list: Account<'info, AdminList>,
 }
 
 pub fn update_escrow_config(ctx: Context<UpdateEscrowConfig>, new_luxhub_wallet: Pubkey) -> Result<()> {
-    // Ensure the signer is an authorized admin.
     require!(
         ctx.accounts.admin_list.admins.contains(&ctx.accounts.admin.key()),
         ErrorCode::Unauthorized
     );
-
     let config = &mut ctx.accounts.escrow_config;
     config.luxhub_wallet = new_luxhub_wallet;
     Ok(())

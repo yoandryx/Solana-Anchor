@@ -43,7 +43,7 @@ pub fn mint_nft(ctx: Context<MintNFT>) -> Result<()> {
         CustomError::Unauthorized
     );
 
-    // Mint 1 token (NFT) to the recipient's associated token account.
+    // Mint one token (NFT) to the recipient's associated token account.
     let cpi_accounts = MintTo {
         mint: ctx.accounts.nft_mint.to_account_info(),
         to: ctx.accounts.recipient_token_account.to_account_info(),

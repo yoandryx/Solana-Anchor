@@ -12,7 +12,7 @@ use crate::states::Escrow;
 pub struct Cancel<'info> {
     #[account(mut)]
     initializer: Signer<'info>,
-    mint_a: Account<'info, Mint>,
+    pub mint_a: Account<'info, Mint>,
     #[account(
         mut,
         associated_token::mint = mint_a,
@@ -24,7 +24,7 @@ pub struct Cancel<'info> {
         has_one = initializer,
         has_one = mint_a,
         close = initializer,
-        seeds=[b"state", escrow.seed.to_le_bytes().as_ref()],
+        seeds = [b"state", escrow.seed.to_le_bytes().as_ref()],
         bump = escrow.bump,
     )]
     escrow: Account<'info, Escrow>,
@@ -34,9 +34,9 @@ pub struct Cancel<'info> {
         associated_token::authority = escrow
     )]
     pub vault: Account<'info, TokenAccount>,
-    associated_token_program: Program<'info, AssociatedToken>,
-    token_program: Program<'info, Token>,
-    system_program: Program<'info, System>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 impl<'info> Cancel<'info> {
@@ -54,7 +54,6 @@ impl<'info> Cancel<'info> {
         )?;
 
         close_account(self.into_close_context().with_signer(&signer_seeds))
-
     }
 
     fn into_refund_context(&self) -> CpiContext<'_, '_, '_, 'info, TransferChecked<'info>> {
