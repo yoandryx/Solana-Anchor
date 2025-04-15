@@ -19,6 +19,8 @@ pub enum ErrorCode {
     AlreadyCompleted,
     #[msg("Unauthorized access.")]
     Unauthorized, // ← ✅ add this here and delete the `CustomError` enum below
+    #[msg("Math operation overflowed.")]
+    MathOverflow, // ← ✅ Add this line
 }
 
 #[program]
