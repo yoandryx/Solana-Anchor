@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-anchor_escrow = "GRE7cbpBscopx6ygmCvhPqMNEUDWtu9gBVSzNMSPWkLX"
+luxhub_marketplace = "kW2w2pHhAP8hFGRLganziunchKu6tjaXyomvF6jxNpj"
 
 [registry]
 url = "https://api.apr.dev"

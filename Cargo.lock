@@ -171,15 +171,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anchor-escrow"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "solana-address-lookup-table-interface",
-]
-
-[[package]]
 name = "anchor-lang"
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -865,6 +856,14 @@ name = "log"
 version = "0.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
+
+[[package]]
+name = "luxhub-marketplace"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+]
 
 [[package]]
 name = "memchr"

@@ -1,7 +1,11 @@
 [workspace]
-members = [
-    "programs/anchor-escrow",
-]
+members = ["programs/luxhub-marketplace"]
+exclude = ["programs/anchor-escrow"]   # <-- add this line
 resolver = "2"
+
+[workspace.dependencies]
+anchor-lang = "0.31.0"
+anchor-spl  = "0.31.0"
+
 [profile.release]
 overflow-checks = true

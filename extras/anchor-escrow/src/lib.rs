@@ -3,7 +3,7 @@ mod contexts;
 use contexts::*;
 mod states;
 
-declare_id!("GRE7cbpBscopx6ygmCvhPqMNEUDWtu9gBVSzNMSPWkLX");
+declare_id!("7eUp3BNSTCBoEEayBdgFbvoWrSQSKHqXAYSq5neikT8Q");
 
 pub use contexts::exchange::Exchange;
 pub use contexts::confirm_delivery::ConfirmDelivery;

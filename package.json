@@ -25,6 +25,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.0",
     "@solana/spl-token": "^0.4.8",
+    "@sqds/multisig": "^2.1.4",
     "bn.js": "^5.2.1",
     "next.js": "^1.0.3"
   },
