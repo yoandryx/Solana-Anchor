@@ -1,6 +1,6 @@
 // instructions/update_price.rs
 use anchor_lang::prelude::*;
-use crate::contexts::UpdatePrice;
+use crate::UpdatePrice;
 use crate::errors::LuxError;
 
 /// Handler for updating the sale price of an escrow listing.

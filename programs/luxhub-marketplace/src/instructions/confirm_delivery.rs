@@ -1,14 +1,14 @@
 // instructions/confirm_delivery.rs
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
-use crate::contexts;
+use crate::ConfirmDelivery;
 use crate::constants::{BPS_DENOM, SELLER_BPS, FEE_BPS};
-use anchor_lang::{prelude::*, solana_program::sysvar::instructions as ix_sysvar};
+use anchor_lang::solana_program::sysvar::instructions as ix_sysvar;
 use crate::constants::SQUADS_V4_PUBKEY;
 use crate::errors::LuxError;
 use crate::utils::squads_gate::enforce_squads_cpi;
 
-pub fn handler(ctx: Context<contexts::ConfirmDelivery>) -> Result<()> {
+pub fn handler(ctx: Context<ConfirmDelivery>) -> Result<()> {
 
     // --- Squads CPI origin check (CHECK CURRENT top-level ix) ---
     let ix_info = &ctx.accounts.instructions_sysvar;

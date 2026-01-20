@@ -1,10 +1,10 @@
 // instructions/exchange.rs
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
-use crate::contexts;
+use crate::Exchange;
 use crate::errors::LuxError;
 
-pub fn handler(ctx: Context<contexts::Exchange>) -> Result<()> {
+pub fn handler(ctx: Context<Exchange>) -> Result<()> {
     let escrow = &mut ctx.accounts.escrow;
     require!(!escrow.is_completed, LuxError::Unauthorized);
 

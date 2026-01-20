@@ -1,10 +1,10 @@
 // instructions/initialize_config.rs
 use anchor_lang::prelude::*;
-use crate::contexts;
+use crate::InitializeConfig;
 use crate::state::EscrowConfig;
 
 pub fn handler(
-    ctx: Context<contexts::InitializeConfig>,
+    ctx: Context<InitializeConfig>,
     squads_multisig: Pubkey,
     squads_authority: Pubkey,
 ) -> Result<()> {

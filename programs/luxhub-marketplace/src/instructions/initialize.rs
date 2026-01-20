@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
-use crate::{contexts, state::Escrow, errors::LuxError};
+use crate::{Initialize, state::Escrow, errors::LuxError};
 
 pub fn handler(
-    ctx: Context<contexts::Initialize>,
+    ctx: Context<Initialize>,
     seed: u64,                // bookkeeping (not used for PDA seeds)
     bump: u8,                 // from ctx.bumps.escrow
     initializer_amount: u64,  // expect 1 for an NFT

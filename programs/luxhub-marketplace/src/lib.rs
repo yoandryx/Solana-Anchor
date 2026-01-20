@@ -1,29 +1,187 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token::{Mint, Token, TokenAccount};
 
 pub mod constants;
 pub mod errors;
 pub mod utils;
 pub mod state;
-pub mod contexts;
 pub mod instructions;
 
-// Re-export full context modules at crate root for #[program] macro
-pub use contexts::initialize_config;
-pub use contexts::initialize;
-pub use contexts::exchange;
-pub use contexts::confirm_delivery;
-pub use contexts::admin_only_example;
-pub use contexts::update_price;
-
-// Also re-export the context structs directly for easier use
-pub use contexts::initialize_config::InitializeConfig;
-pub use contexts::initialize::Initialize;
-pub use contexts::exchange::Exchange;
-pub use contexts::confirm_delivery::ConfirmDelivery;
-pub use contexts::admin_only_example::AdminOnlyExample;
-pub use contexts::update_price::UpdatePrice;
+use state::{Escrow, EscrowConfig};
+use constants::{CONFIG_SEED, ESCROW_SEED};
+use errors::LuxError;
 
 declare_id!("kW2w2pHhAP8hFGRLganziunchKu6tjaXyomvF6jxNpj");
+
+// ============================================
+// ACCOUNT CONTEXTS (inline for Anchor 0.31.0 compatibility)
+// ============================================
+
+#[derive(Accounts)]
+pub struct InitializeConfig<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + EscrowConfig::SIZE,
+        seeds = [CONFIG_SEED],
+        bump
+    )]
+    pub config: Account<'info, EscrowConfig>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(seed: u64)]
+pub struct Initialize<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    #[account(seeds = [CONFIG_SEED], bump)]
+    pub config: Account<'info, EscrowConfig>,
+
+    pub mint_a: Account<'info, Mint>,
+    pub mint_b: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        constraint = seller_ata_a.mint == mint_a.key(),
+        constraint = seller_ata_a.owner == seller.key()
+    )]
+    pub seller_ata_a: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = seller_ata_b.mint == mint_b.key(),
+        constraint = seller_ata_b.owner == seller.key(),
+        constraint = seller_ata_b.amount == 1
+    )]
+    pub seller_ata_b: Account<'info, TokenAccount>,
+
+    #[account(
+        init,
+        payer = admin,
+        space = 8 + Escrow::SIZE,
+        seeds = [ESCROW_SEED, &seed.to_le_bytes()[..]],
+        bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    #[account(
+        init,
+        payer = admin,
+        token::mint = mint_b,
+        token::authority = escrow
+    )]
+    pub nft_vault: Account<'info, TokenAccount>,
+
+    #[account(
+        init,
+        payer = admin,
+        token::mint = mint_a,
+        token::authority = escrow
+    )]
+    pub wsol_vault: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Exchange<'info> {
+    #[account(mut)]
+    pub taker: Signer<'info>,
+
+    #[account(mut)]
+    pub escrow: Account<'info, Escrow>,
+
+    pub mint_a: Account<'info, Mint>,
+    pub mint_b: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub taker_funds_ata: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub wsol_vault: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ConfirmDelivery<'info> {
+    #[account(mut)]
+    pub escrow: Account<'info, Escrow>,
+
+    #[account(seeds = [CONFIG_SEED], bump)]
+    pub config: Account<'info, EscrowConfig>,
+
+    #[account(mut)]
+    pub buyer_nft_ata: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub nft_vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub wsol_vault: Account<'info, TokenAccount>,
+
+    pub mint_a: Account<'info, Mint>,
+    pub mint_b: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub seller_funds_ata: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub luxhub_fee_ata: Account<'info, TokenAccount>,
+
+    /// CHECK: verified in handler
+    pub authority: AccountInfo<'info>,
+
+    /// CHECK: we only read its bytes
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: AccountInfo<'info>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct AdminOnlyExample<'info> {
+    #[account(seeds = [CONFIG_SEED], bump)]
+    pub config: Account<'info, EscrowConfig>,
+
+    /// CHECK: Verified in handler against `config.squads_authority`
+    pub authority: AccountInfo<'info>,
+
+    /// CHECK: Read-only sysvar
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePrice<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [ESCROW_SEED, &escrow.seed.to_le_bytes()[..]],
+        bump = escrow.bump,
+        constraint = escrow.initializer == seller.key() @ LuxError::NotSeller,
+        constraint = !escrow.is_completed @ LuxError::EscrowAlreadyCompleted,
+        constraint = escrow.buyer == Pubkey::default() @ LuxError::EscrowHasBuyer,
+    )]
+    pub escrow: Account<'info, Escrow>,
+}
+
+// ============================================
+// PROGRAM INSTRUCTIONS
+// ============================================
 
 #[program]
 pub mod luxhub_marketplace {
