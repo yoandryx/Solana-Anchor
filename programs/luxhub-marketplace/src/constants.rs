@@ -9,7 +9,8 @@ pub const ESCROW_SEED: &[u8] = b"state";
 pub const CONFIG_SEED: &[u8] = b"luxhub-config";
 pub const ADMIN_LIST_SEED: &[u8] = b"admin-list";
 
-// App-tunable split for escrow
-pub const SELLER_BPS: u64 = 9500; // 95%
-pub const FEE_BPS: u64 = 500;     // 5%
+// App-tunable split for escrow (97% seller / 3% platform royalty)
+// Note: These are base values. Future update_config instruction will allow adjustment.
+pub const SELLER_BPS: u64 = 9700; // 97%
+pub const FEE_BPS: u64 = 300;     // 3%
 pub const BPS_DENOM: u64 = 10_000;

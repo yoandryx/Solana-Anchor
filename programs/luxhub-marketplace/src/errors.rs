@@ -54,4 +54,13 @@ pub enum LuxError {
 
     #[msg("Only the seller can perform this action.")]
     NotSeller,
+
+    #[msg("Cannot cancel escrow after buyer has deposited funds.")]
+    CannotCancelWithBuyer,
+
+    #[msg("Fee cannot exceed 10% (1000 basis points).")]
+    FeeTooHigh,
+
+    #[msg("Protocol is currently paused.")]
+    ProtocolPaused,
 }

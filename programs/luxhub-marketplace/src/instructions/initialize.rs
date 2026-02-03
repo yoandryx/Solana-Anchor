@@ -19,7 +19,7 @@ pub fn handler(
     escrow.seed = seed;
     escrow.bump = bump;
     escrow.initializer = ctx.accounts.seller.key();
-    escrow.luxhub_wallet = ctx.accounts.config.squads_multisig; // <-- fixed
+    escrow.luxhub_wallet = ctx.accounts.config.authority;
     escrow.mint_a = ctx.accounts.mint_a.key();
     escrow.mint_b = ctx.accounts.mint_b.key();
     escrow.initializer_amount = initializer_amount;

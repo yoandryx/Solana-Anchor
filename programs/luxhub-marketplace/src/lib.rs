@@ -150,18 +150,6 @@ pub struct ConfirmDelivery<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-#[derive(Accounts)]
-pub struct AdminOnlyExample<'info> {
-    #[account(seeds = [CONFIG_SEED], bump)]
-    pub config: Account<'info, EscrowConfig>,
-
-    /// CHECK: Verified in handler against `config.squads_authority`
-    pub authority: AccountInfo<'info>,
-
-    /// CHECK: Read-only sysvar
-    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
-    pub instructions_sysvar: AccountInfo<'info>,
-}
 
 #[derive(Accounts)]
 pub struct UpdatePrice<'info> {
@@ -179,6 +167,75 @@ pub struct UpdatePrice<'info> {
     pub escrow: Account<'info, Escrow>,
 }
 
+#[derive(Accounts)]
+pub struct CancelEscrow<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [ESCROW_SEED, &escrow.seed.to_le_bytes()[..]],
+        bump = escrow.bump,
+        constraint = escrow.initializer == seller.key() @ LuxError::NotSeller,
+        constraint = !escrow.is_completed @ LuxError::EscrowAlreadyCompleted,
+        constraint = escrow.buyer == Pubkey::default() @ LuxError::CannotCancelWithBuyer,
+        close = seller
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    #[account(
+        mut,
+        constraint = nft_vault.owner == escrow.key(),
+        constraint = nft_vault.mint == escrow.mint_b
+    )]
+    pub nft_vault: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = wsol_vault.owner == escrow.key(),
+        constraint = wsol_vault.mint == escrow.mint_a
+    )]
+    pub wsol_vault: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = seller_nft_ata.owner == seller.key(),
+        constraint = seller_nft_ata.mint == escrow.mint_b
+    )]
+    pub seller_nft_ata: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [CONFIG_SEED],
+        bump
+    )]
+    pub config: Account<'info, EscrowConfig>,
+}
+
+#[derive(Accounts)]
+pub struct CloseConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    /// CHECK: We intentionally use AccountInfo to close accounts with mismatched data layouts.
+    /// The PDA seeds verification ensures this is the correct config account.
+    #[account(
+        mut,
+        seeds = [CONFIG_SEED],
+        bump
+    )]
+    pub config: AccountInfo<'info>,
+}
+
 // ============================================
 // PROGRAM INSTRUCTIONS
 // ============================================
@@ -187,12 +244,17 @@ pub struct UpdatePrice<'info> {
 pub mod luxhub_marketplace {
     use super::*;
 
+    /// Initialize the protocol config. Can only be called once.
+    /// authority: The multisig that controls config updates
+    /// treasury: The vault where fees are sent
+    /// fee_bps: Fee in basis points (300 = 3%)
     pub fn initialize_config(
         ctx: Context<InitializeConfig>,
-        squads_multisig: Pubkey,
-        squads_authority: Pubkey,
+        authority: Pubkey,
+        treasury: Pubkey,
+        fee_bps: u16,
     ) -> Result<()> {
-        instructions::initialize_config::handler(ctx, squads_multisig, squads_authority)
+        instructions::initialize_config::handler(ctx, authority, treasury, fee_bps)
     }
 
     pub fn initialize(
@@ -217,13 +279,33 @@ pub mod luxhub_marketplace {
         instructions::confirm_delivery::handler(ctx)
     }
 
-    pub fn admin_only_example(ctx: Context<AdminOnlyExample>) -> Result<()> {
-        instructions::admin_only_example::handler(ctx)
-    }
-
     /// Update the sale price of an escrow listing.
     /// Only callable by the original seller before a buyer is assigned.
     pub fn update_price(ctx: Context<UpdatePrice>, new_price: u64) -> Result<()> {
         instructions::update_price::handler(ctx, new_price)
+    }
+
+    /// Cancel an escrow listing and return the NFT to seller.
+    /// Only callable by the original seller before a buyer deposits funds.
+    pub fn cancel_escrow(ctx: Context<CancelEscrow>) -> Result<()> {
+        instructions::cancel_escrow::handler(ctx)
+    }
+
+    /// Update the protocol config. All parameters are optional.
+    /// Only callable by the current authority (should be multisig).
+    pub fn update_config(
+        ctx: Context<UpdateConfig>,
+        new_authority: Option<Pubkey>,
+        new_treasury: Option<Pubkey>,
+        new_fee_bps: Option<u16>,
+        new_paused: Option<bool>,
+    ) -> Result<()> {
+        instructions::update_config::handler(ctx, new_authority, new_treasury, new_fee_bps, new_paused)
+    }
+
+    /// Close the config account (for migration/reinitialization).
+    /// Returns rent to admin. Use with caution!
+    pub fn close_config(ctx: Context<CloseConfig>) -> Result<()> {
+        instructions::close_config::handler(ctx)
     }
 }

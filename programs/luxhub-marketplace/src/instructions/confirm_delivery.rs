@@ -2,13 +2,17 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 use crate::ConfirmDelivery;
-use crate::constants::{BPS_DENOM, SELLER_BPS, FEE_BPS};
+use crate::constants::BPS_DENOM;
 use anchor_lang::solana_program::sysvar::instructions as ix_sysvar;
 use crate::constants::SQUADS_V4_PUBKEY;
 use crate::errors::LuxError;
 use crate::utils::squads_gate::enforce_squads_cpi;
 
 pub fn handler(ctx: Context<ConfirmDelivery>) -> Result<()> {
+    let config = &ctx.accounts.config;
+
+    // Check if protocol is paused
+    require!(!config.paused, LuxError::ProtocolPaused);
 
     // --- Squads CPI origin check (CHECK CURRENT top-level ix) ---
     let ix_info = &ctx.accounts.instructions_sysvar;
@@ -19,10 +23,10 @@ pub fn handler(ctx: Context<ConfirmDelivery>) -> Result<()> {
         SQUADS_V4_PUBKEY,
         LuxError::NotCalledBySquads
     );
-    
-    // Squads gate
-    require_keys_eq!(ctx.accounts.authority.key(), ctx.accounts.config.squads_authority, LuxError::Unauthorized);
-    enforce_squads_cpi(&ctx.accounts.instructions_sysvar, &ctx.accounts.config.squads_authority)?;
+
+    // Squads gate - verify authority matches config
+    require_keys_eq!(ctx.accounts.authority.key(), config.authority, LuxError::Unauthorized);
+    enforce_squads_cpi(&ctx.accounts.instructions_sysvar, &config.authority)?;
 
     let escrow = &mut ctx.accounts.escrow;
     require!(!escrow.is_completed, LuxError::Unauthorized);
@@ -45,13 +49,16 @@ pub fn handler(ctx: Context<ConfirmDelivery>) -> Result<()> {
         escrow.initializer_amount,
     )?;
 
-    // Split
-    let seller_share = escrow.sale_price.checked_mul(SELLER_BPS).ok_or(LuxError::MathOverflow)?
+    // Calculate fee split using on-chain config fee_bps
+    let fee_bps = config.fee_bps as u64;
+    let seller_bps = BPS_DENOM - fee_bps;
+
+    let seller_share = escrow.sale_price.checked_mul(seller_bps).ok_or(LuxError::MathOverflow)?
         .checked_div(BPS_DENOM).ok_or(LuxError::MathOverflow)?;
-    let fee_share = escrow.sale_price.checked_mul(FEE_BPS).ok_or(LuxError::MathOverflow)?
+    let fee_share = escrow.sale_price.checked_mul(fee_bps).ok_or(LuxError::MathOverflow)?
         .checked_div(BPS_DENOM).ok_or(LuxError::MathOverflow)?;
 
-    // Fee
+    // Fee -> treasury (config.treasury)
     token::transfer(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -65,7 +72,7 @@ pub fn handler(ctx: Context<ConfirmDelivery>) -> Result<()> {
         fee_share,
     )?;
 
-    // Seller
+    // Seller share
     token::transfer(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -80,5 +87,7 @@ pub fn handler(ctx: Context<ConfirmDelivery>) -> Result<()> {
     )?;
 
     escrow.is_completed = true;
+    msg!("Delivery confirmed: seller_share={}, fee_share={} ({}bps)",
+         seller_share, fee_share, fee_bps);
     Ok(())
 }
