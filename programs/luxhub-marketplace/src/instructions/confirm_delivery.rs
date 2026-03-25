@@ -29,7 +29,7 @@ pub fn handler(ctx: Context<ConfirmDelivery>) -> Result<()> {
     enforce_squads_cpi(&ctx.accounts.instructions_sysvar, &config.authority)?;
 
     let escrow = &mut ctx.accounts.escrow;
-    require!(!escrow.is_completed, LuxError::Unauthorized);
+    // is_completed and buyer checks are enforced in account constraints
     require!(ctx.accounts.wsol_vault.amount >= escrow.sale_price, LuxError::Unauthorized);
 
     let signer_seeds = &[b"state", &escrow.seed.to_le_bytes()[..], &[escrow.bump]];

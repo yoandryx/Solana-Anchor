@@ -2,11 +2,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 use crate::Exchange;
-use crate::errors::LuxError;
 
 pub fn handler(ctx: Context<Exchange>) -> Result<()> {
     let escrow = &mut ctx.accounts.escrow;
-    require!(!escrow.is_completed, LuxError::Unauthorized);
+    // is_completed and buyer==default checks are enforced in account constraints
 
     escrow.buyer = ctx.accounts.taker.key();
     let amount = escrow.sale_price;
