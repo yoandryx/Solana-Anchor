@@ -11,38 +11,10 @@ pub enum LuxError {
     #[msg("Math operation overflowed.")]
     MathOverflow,
 
-    // NFT Management Errors
-    #[msg("Caller is not the mint authority.")]
-    NotMintAuthority,
-
-    #[msg("Caller is not the freeze authority.")]
-    NotFreezeAuthority,
-
-    #[msg("Invalid token amount. Expected exactly 1 for NFT.")]
-    InvalidTokenAmount,
-
     #[msg("Token account mint does not match expected mint.")]
     MintMismatch,
 
-    #[msg("Caller is not a delegate for this token account.")]
-    NotDelegate,
-
-    #[msg("NFT is already frozen.")]
-    AlreadyFrozen,
-
-    #[msg("NFT is not frozen.")]
-    NotFrozen,
-
-    #[msg("NFT has already been burned.")]
-    AlreadyBurned,
-
-    #[msg("Invalid recipient address.")]
-    InvalidRecipient,
-
-    #[msg("Token account is empty.")]
-    EmptyTokenAccount,
-
-    // Escrow Update Errors
+    // Escrow Errors
     #[msg("Escrow has already been completed.")]
     EscrowAlreadyCompleted,
 
@@ -63,4 +35,10 @@ pub enum LuxError {
 
     #[msg("Protocol is currently paused.")]
     ProtocolPaused,
+
+    #[msg("Cannot purchase your own listing.")]
+    SelfPurchase,
+
+    #[msg("No buyer assigned to this escrow.")]
+    NoBuyer,
 }

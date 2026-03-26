@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, CloseAccount, Transfer};
 
 use crate::CancelEscrow;
+use crate::constants::ESCROW_SEED;
 
 /// Cancel an escrow listing and return the NFT to the seller.
 /// Only callable by the original seller before a buyer deposits funds.
@@ -11,7 +12,7 @@ pub fn handler(ctx: Context<CancelEscrow>) -> Result<()> {
 
     // Build signer seeds for the escrow PDA
     let seeds = &[
-        b"state".as_ref(),
+        ESCROW_SEED,
         &escrow.seed.to_le_bytes()[..],
         &[escrow.bump],
     ];
@@ -54,6 +55,5 @@ pub fn handler(ctx: Context<CancelEscrow>) -> Result<()> {
         signer_seeds,
     ))?;
 
-    msg!("Escrow cancelled. NFT returned to seller.");
     Ok(())
 }

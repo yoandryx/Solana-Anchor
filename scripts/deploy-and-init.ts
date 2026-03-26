@@ -201,7 +201,7 @@ async function initializeConfig(
   console.log("\n  Sending initialize_config transaction...");
 
   const tx = await program.methods
-    .initializeConfig(squadsMultisig, squadsAuthority)
+    .initializeConfig(squadsMultisig, squadsAuthority, 300)
     .accounts({
       payer: provider.wallet.publicKey,
       config: configPda,

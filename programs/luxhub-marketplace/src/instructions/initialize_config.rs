@@ -2,6 +2,7 @@
 use anchor_lang::prelude::*;
 use crate::InitializeConfig;
 use crate::state::EscrowConfig;
+use crate::errors::LuxError;
 
 pub fn handler(
     ctx: Context<InitializeConfig>,
@@ -9,6 +10,8 @@ pub fn handler(
     treasury: Pubkey,
     fee_bps: u16,
 ) -> Result<()> {
+    require!(fee_bps <= 1000, LuxError::FeeTooHigh);
+
     let cfg: &mut Account<EscrowConfig> = &mut ctx.accounts.config;
     cfg.authority = authority;
     cfg.treasury = treasury;
@@ -16,7 +19,5 @@ pub fn handler(
     cfg.paused = false;
     cfg.bump = ctx.bumps.config;
 
-    msg!("Config initialized: authority={}, treasury={}, fee_bps={}",
-         authority, treasury, fee_bps);
     Ok(())
 }

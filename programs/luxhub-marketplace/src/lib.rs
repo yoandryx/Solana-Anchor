@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::associated_token::AssociatedToken;
 
 pub mod constants;
 pub mod errors;
@@ -51,13 +52,6 @@ pub struct Initialize<'info> {
 
     #[account(
         mut,
-        constraint = seller_ata_a.mint == mint_a.key(),
-        constraint = seller_ata_a.owner == seller.key()
-    )]
-    pub seller_ata_a: Account<'info, TokenAccount>,
-
-    #[account(
-        mut,
         constraint = seller_ata_b.mint == mint_b.key(),
         constraint = seller_ata_b.owner == seller.key(),
         constraint = seller_ata_b.amount == 1
@@ -76,20 +70,21 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = admin,
-        token::mint = mint_b,
-        token::authority = escrow
+        associated_token::mint = mint_b,
+        associated_token::authority = escrow,
     )]
     pub nft_vault: Account<'info, TokenAccount>,
 
     #[account(
         init,
         payer = admin,
-        token::mint = mint_a,
-        token::authority = escrow
+        associated_token::mint = mint_a,
+        associated_token::authority = escrow,
     )]
     pub wsol_vault: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -106,6 +101,7 @@ pub struct Exchange<'info> {
         constraint = escrow.buyer == Pubkey::default() @ LuxError::EscrowHasBuyer,
         constraint = escrow.mint_a == mint_a.key() @ LuxError::MintMismatch,
         constraint = escrow.mint_b == mint_b.key() @ LuxError::MintMismatch,
+        constraint = taker.key() != escrow.initializer @ LuxError::SelfPurchase,
     )]
     pub escrow: Account<'info, Escrow>,
 
@@ -121,12 +117,13 @@ pub struct Exchange<'info> {
 
     #[account(
         mut,
-        constraint = wsol_vault.owner == escrow.key() @ LuxError::Unauthorized,
-        constraint = wsol_vault.mint == mint_a.key() @ LuxError::MintMismatch,
+        associated_token::mint = mint_a,
+        associated_token::authority = escrow,
     )]
     pub wsol_vault: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -140,6 +137,7 @@ pub struct ConfirmDelivery<'info> {
         constraint = escrow.buyer != Pubkey::default() @ LuxError::Unauthorized,
         constraint = escrow.mint_a == mint_a.key() @ LuxError::MintMismatch,
         constraint = escrow.mint_b == mint_b.key() @ LuxError::MintMismatch,
+        close = seller,
     )]
     pub escrow: Account<'info, Escrow>,
 
@@ -155,15 +153,15 @@ pub struct ConfirmDelivery<'info> {
 
     #[account(
         mut,
-        constraint = nft_vault.owner == escrow.key() @ LuxError::Unauthorized,
-        constraint = nft_vault.mint == mint_b.key() @ LuxError::MintMismatch,
+        associated_token::mint = mint_b,
+        associated_token::authority = escrow,
     )]
     pub nft_vault: Account<'info, TokenAccount>,
 
     #[account(
         mut,
-        constraint = wsol_vault.owner == escrow.key() @ LuxError::Unauthorized,
-        constraint = wsol_vault.mint == mint_a.key() @ LuxError::MintMismatch,
+        associated_token::mint = mint_a,
+        associated_token::authority = escrow,
     )]
     pub wsol_vault: Account<'info, TokenAccount>,
 
@@ -184,6 +182,10 @@ pub struct ConfirmDelivery<'info> {
     )]
     pub luxhub_fee_ata: Account<'info, TokenAccount>,
 
+    /// CHECK: receives rent from closed escrow
+    #[account(mut, address = escrow.initializer)]
+    pub seller: AccountInfo<'info>,
+
     /// CHECK: verified in handler against config.authority
     pub authority: AccountInfo<'info>,
 
@@ -192,6 +194,8 @@ pub struct ConfirmDelivery<'info> {
     pub instructions_sysvar: AccountInfo<'info>,
 
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
 }
 
 
@@ -229,15 +233,15 @@ pub struct CancelEscrow<'info> {
 
     #[account(
         mut,
-        constraint = nft_vault.owner == escrow.key(),
-        constraint = nft_vault.mint == escrow.mint_b
+        associated_token::mint = escrow.mint_b,
+        associated_token::authority = escrow,
     )]
     pub nft_vault: Account<'info, TokenAccount>,
 
     #[account(
         mut,
-        constraint = wsol_vault.owner == escrow.key(),
-        constraint = wsol_vault.mint == escrow.mint_a
+        associated_token::mint = escrow.mint_a,
+        associated_token::authority = escrow,
     )]
     pub wsol_vault: Account<'info, TokenAccount>,
 
@@ -249,6 +253,7 @@ pub struct CancelEscrow<'info> {
     pub seller_nft_ata: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -258,6 +263,9 @@ pub struct RefundBuyer<'info> {
         mut,
         seeds = [ESCROW_SEED, &escrow.seed.to_le_bytes()[..]],
         bump = escrow.bump,
+        constraint = escrow.buyer != Pubkey::default() @ LuxError::NoBuyer,
+        constraint = !escrow.is_completed @ LuxError::EscrowAlreadyCompleted,
+        close = buyer_account,
     )]
     pub escrow: Account<'info, Escrow>,
 
@@ -273,15 +281,15 @@ pub struct RefundBuyer<'info> {
 
     #[account(
         mut,
-        constraint = funds_vault.owner == escrow.key(),
-        constraint = funds_vault.mint == escrow.mint_a
+        associated_token::mint = escrow.mint_a,
+        associated_token::authority = escrow,
     )]
     pub funds_vault: Account<'info, TokenAccount>,
 
     #[account(
         mut,
-        constraint = nft_vault.owner == escrow.key(),
-        constraint = nft_vault.mint == escrow.mint_b
+        associated_token::mint = escrow.mint_b,
+        associated_token::authority = escrow,
     )]
     pub nft_vault: Account<'info, TokenAccount>,
 
@@ -292,6 +300,10 @@ pub struct RefundBuyer<'info> {
     )]
     pub seller_nft_ata: Account<'info, TokenAccount>,
 
+    /// CHECK: receives rent from closed escrow
+    #[account(mut, address = escrow.buyer)]
+    pub buyer_account: AccountInfo<'info>,
+
     /// CHECK: verified in handler
     pub authority: AccountInfo<'info>,
 
@@ -300,6 +312,8 @@ pub struct RefundBuyer<'info> {
     pub instructions_sysvar: AccountInfo<'info>,
 
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -323,16 +337,14 @@ pub struct CloseConfig<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
-    /// CHECK: We intentionally use AccountInfo to close accounts with mismatched data layouts.
-    /// The PDA seeds verification ensures this is the correct config account.
-    /// Authority check is performed in the handler by reading the first 40 bytes
-    /// (8-byte discriminator + 32-byte authority pubkey).
     #[account(
         mut,
         seeds = [CONFIG_SEED],
-        bump
+        bump,
+        close = admin,
+        constraint = admin.key() == config.authority @ LuxError::Unauthorized,
     )]
-    pub config: AccountInfo<'info>,
+    pub config: Account<'info, EscrowConfig>,
 }
 
 // ============================================

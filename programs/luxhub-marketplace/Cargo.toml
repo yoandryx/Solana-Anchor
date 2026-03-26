@@ -9,7 +9,7 @@ name = "luxhub_marketplace"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-anchor-lang = { version = "0.31.0", features = ["init-if-needed"] }
+anchor-lang = "0.31.0"
 anchor-spl = "0.31.0"
 
 [features]

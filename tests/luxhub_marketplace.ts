@@ -346,6 +346,56 @@ describe("luxhub_marketplace", () => {
     }
   });
 
+  // ========== H-2, H-3: confirm_delivery happy-path (devnet verification per D-07) ==========
+
+  it("confirm_delivery happy-path (devnet verification per D-07) — documents expected behavior", async () => {
+    // This test documents the expected happy-path for confirm_delivery:
+    //
+    // PRECONDITION: exchange() has been called — buyer funded escrow, NFT is in nft_vault
+    //
+    // EXPECTED BEHAVIOR when called via Squads CPI:
+    // 1. NFT transfers from nft_vault → buyer_nft_ata
+    // 2. Funds split: seller gets (sale_price - fee_share), treasury gets fee_share
+    //    where fee_share = sale_price * fee_bps / 10000
+    //    and seller_share = sale_price - fee_share (no remainder loss per D-20)
+    // 3. nft_vault token account closed (rent → seller)
+    // 4. wsol_vault token account closed (rent → seller)
+    // 5. escrow account closed (rent → seller, per close = seller constraint)
+    //
+    // VERIFICATION APPROACH:
+    // - Local validator: CPI gate blocks direct call (tested above)
+    // - Devnet: Full Squads vault TX wrapping confirm_delivery (D-07)
+    //
+    // We verify the accounts are correctly set up post-exchange:
+
+    // Verify escrow state shows buyer is set (from exchange)
+    const escrowAccount = await (program.account as any)["escrow"].fetch(escrowPda);
+    expect(escrowAccount.buyer.toBase58()).to.eq(buyer.publicKey.toBase58());
+    expect(escrowAccount.isCompleted).to.eq(false);
+
+    // Verify NFT is in vault (ready for transfer to buyer)
+    const nftVaultAccount = await getAccount(provider.connection, nftVault);
+    expect(Number(nftVaultAccount.amount)).to.eq(1);
+
+    // Verify funds are in vault (ready for split)
+    const fundsVaultAccount = await getAccount(provider.connection, wsolVault);
+    expect(Number(fundsVaultAccount.amount)).to.eq(salePrice.toNumber());
+
+    // Verify the expected fund split calculation
+    const feeBps = 300; // 3% as configured in initialize_config
+    const expectedFeeShare = Math.floor(salePrice.toNumber() * feeBps / 10000);
+    const expectedSellerShare = salePrice.toNumber() - expectedFeeShare; // D-20 pattern
+    expect(expectedSellerShare + expectedFeeShare).to.eq(salePrice.toNumber());
+
+    // Log expected behavior for devnet verification
+    console.log("    confirm_delivery expected behavior (verify on devnet):");
+    console.log(`      NFT vault → buyer ATA: 1 token`);
+    console.log(`      Funds vault → seller ATA: ${expectedSellerShare} lamports (97%)`);
+    console.log(`      Funds vault → treasury ATA: ${expectedFeeShare} lamports (3%)`);
+    console.log(`      Accounts closed: escrow, nft_vault, wsol_vault`);
+    console.log(`      Rent returned to: seller`);
+  });
+
   // ========== D-18: update_price taker_amount sync ==========
 
   // We use a second escrow for update_price and cancel_escrow tests

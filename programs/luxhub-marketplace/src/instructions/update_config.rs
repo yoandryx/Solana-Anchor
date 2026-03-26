@@ -32,7 +32,5 @@ pub fn handler(
         cfg.paused = paused;
     }
 
-    msg!("Config updated: authority={}, treasury={}, fee_bps={}, paused={}",
-         cfg.authority, cfg.treasury, cfg.fee_bps, cfg.paused);
     Ok(())
 }

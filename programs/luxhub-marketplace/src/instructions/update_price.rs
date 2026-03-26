@@ -22,24 +22,14 @@ pub fn handler(ctx: Context<UpdatePrice>, new_price: u64) -> Result<()> {
 
     let escrow = &mut ctx.accounts.escrow;
 
-    // Log the price update for transparency
-    msg!(
-        "Updating escrow price: {} -> {} (seller: {})",
-        escrow.sale_price,
-        new_price,
-        ctx.accounts.seller.key()
-    );
-
-    // Update the sale price
+    let old_price = escrow.sale_price;
     escrow.sale_price = new_price;
 
-    // Also update taker_amount if it was set to the sale price
+    // Also update taker_amount if it was set to the old sale price
     // This ensures consistency between the two price fields
-    if escrow.taker_amount == escrow.sale_price {
+    if escrow.taker_amount == old_price {
         escrow.taker_amount = new_price;
     }
-
-    msg!("Escrow price updated successfully to {} lamports", new_price);
 
     Ok(())
 }
