@@ -5,6 +5,9 @@ solana_version = "2.1.16"
 resolution = true
 skip-lint = false
 
+[programs.localnet]
+luxhub_marketplace = "kW2w2pHhAP8hFGRLganziunchKu6tjaXyomvF6jxNpj"
+
 [programs.devnet]
 luxhub_marketplace = "kW2w2pHhAP8hFGRLganziunchKu6tjaXyomvF6jxNpj"
 
@@ -25,6 +28,9 @@ upgradeable = false
 
 [test.validator]
 bind_address = "0.0.0.0"
-url = "https://solana-devnet.g.alchemy.com/v2/y1zYW-ovVofq7OzZo0Z6IHenRnyq_Pbd"
+url = "https://api.devnet.solana.com"
 ledger = ".anchor/test-ledger"
 rpc_port = 8899
+
+[[test.validator.clone]]
+address = "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf"
