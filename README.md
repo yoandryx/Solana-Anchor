@@ -1,141 +1,141 @@
-# Anchor Example: Escrow Program
+# LuxHub Marketplace — Solana Escrow Program
 
-> See this [doc](https://solmeet.gen3.network/notes/intro-to-anchor) for more implementation details
+On-chain escrow protocol for NFT-backed luxury asset transactions on Solana. Physical goods (watches, jewelry, collectibles) are represented as NFTs and held in PDA vaults until delivery is confirmed, then funds are automatically split between vendor and treasury.
 
-## Overview
+**Program ID:** `kW2w2pHhAP8hFGRLganziunchKu6tjaXyomvF6jxNpj`
+**Cluster:** Mainnet / Devnet
+**Framework:** Anchor 0.31.0 | Solana 2.1.16
 
-Since this program is extended from the original [Escrow Program](https://github.com/paul-schaaf/solana-escrow), I assumed you have gone through the [original blog post](https://paulx.dev/blog/2021/01/14/programming-on-solana-an-introduction/#instruction-rs-part-1-general-code-structure-and-the-beginning-of-the-escrow-program-flow) at least once.
+## How It Works
 
-However, there is one major difference between this exmaple and the original Escrow program: Instead of letting initializer create a token account to be reset to a PDA authority, we create `Vault Authority(PDA)`'s associated token account (ATA) directly without transferring authority.
+```
+Vendor lists luxury asset
+    -> Admin mints NFT (SPL Token + Metadata)
+    -> Admin initializes escrow (NFT locked in PDA vault)
 
-#### Initialize
+Buyer purchases
+    -> Buyer deposits USDC into escrow vault
+    -> NFT remains locked until delivery confirmed
 
-![](https://hackmd.io/_uploads/Hkn1gdtuj.png)
+Delivery confirmed (Squads multisig required)
+    -> NFT transferred to buyer
+    -> Funds split: 97% to vendor, 3% to treasury
+    -> Vault accounts closed, rent returned
 
-`Initializer` can send a transaction to the escrow program to initialize the Vault. In this transaction, two new accounts: `Vault Authority's ATA` and `Escrow State`, will be created and tokens (Token A) to be exchanged will be transferred from `Initializer` to `Vault`(short for vault authority's ATA).
+Dispute / Refund (Squads multisig required)
+    -> Funds returned to buyer
+    -> NFT returned to vendor
+    -> Escrow marked complete
+```
 
-#### Cancel
+Every fund-releasing instruction (`confirm_delivery`, `refund_buyer`) is gated by [Squads Protocol v4](https://squads.so/) CPI verification — no single key can move funds.
 
-![](https://hackmd.io/_uploads/ry0GNdKdo.png)
+## Architecture
 
-`Initializer` can also send a transaction to the escrow program to cancel the demand of escrow. The tokens will be transferred back to the `Initializer` and both `Vault` and `Escrow State` will be closed in this case.
+### Accounts
 
-#### Exchange
+**EscrowConfig** (singleton PDA) — Protocol-level settings:
+- `authority` — Squads multisig that controls the protocol
+- `treasury` — Vault PDA where fees are collected
+- `fee_bps` — Fee in basis points (300 = 3%, max 1000 = 10%)
+- `paused` — Emergency kill switch
 
-![](https://hackmd.io/_uploads/HkhNE_tdi.png)
+**Escrow** (per-listing PDA) — Individual escrow state:
+- Seller, buyer, NFT mint, funds mint, sale price
+- IPFS CID for off-chain metadata
+- Completion status
+- PDA-derived ATA vaults for NFT and funds
 
-`Taker` can send a transaction to the escrow to exchange Token B for Token A. First, tokens (Token B) will be transferred from `Taker` to `Initializer`. Afterward, the tokens (Token A) kept in the Vault will be transferred to `Taker`. Finally, both `Vault` and `Escrow State` will be closed.
+### Instructions
 
-## Install, Build, Deploy and Test
+| Instruction | Who | What |
+|---|---|---|
+| `initialize_config` | Admin | Create protocol config (authority, treasury, fee) |
+| `update_config` | Authority | Update config fields (all optional) |
+| `close_config` | Authority | Close config for migration |
+| `initialize` | Admin + Seller | Lock NFT in escrow vault, set sale price |
+| `exchange` | Buyer | Deposit funds (USDC) into escrow vault |
+| `confirm_delivery` | Squads multisig | Release NFT to buyer, split funds 97/3 |
+| `refund_buyer` | Squads multisig | Return funds to buyer, NFT to seller |
+| `update_price` | Seller | Change listing price (before buyer deposits) |
+| `cancel_escrow` | Seller | Cancel listing, reclaim NFT (before buyer deposits) |
 
-Let's run the test once to see what happens.
+### Security
 
-### Install `anchor`
+- **Squads CPI gate** — `confirm_delivery` and `refund_buyer` verify the calling instruction originates from Squads v4 (`SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf`). No single wallet can release or refund funds.
+- **PDA vaults** — NFT and funds held in escrow-derived ATAs. No arbitrary keypair vaults.
+- **Overflow protection** — All fee math uses `checked_mul` / `checked_sub` / `checked_div`.
+- **Emergency pause** — Config `paused` flag blocks all fund movements.
+- **Fee cap** — `fee_bps` max 1000 (10%) enforced on-chain.
+- **Self-purchase prevention** — Buyer cannot be the seller.
+- **State guards** — Cannot cancel after buyer deposits, cannot confirm before buyer deposits, cannot exchange after completion.
 
-First, make sure that `anchor` is installed:
+### Fee Split
 
-Install `avm`:
+```
+sale_price = 1,000,000 (1 USDC)
+fee_bps    = 300 (3%)
+
+fee_share    = sale_price * 300 / 10,000 = 30,000
+seller_share = sale_price - fee_share    = 970,000
+
+-> 970,000 to seller ATA
+-> 30,000  to treasury ATA
+```
+
+`seller_share = sale_price - fee_share` ensures zero remainder loss from integer division.
+
+## Project Structure
+
+```
+programs/luxhub-marketplace/src/
+  lib.rs                    # Account contexts + instruction dispatch
+  constants.rs              # Seeds, Squads program ID, BPS denominator
+  errors.rs                 # Custom error codes
+  state/
+    config.rs               # EscrowConfig account
+    escrow.rs               # Escrow account
+  instructions/
+    initialize_config.rs    # Create protocol config
+    update_config.rs        # Update config fields
+    close_config.rs         # Close config (migration)
+    initialize.rs           # Create escrow, lock NFT
+    exchange.rs             # Buyer deposits funds
+    confirm_delivery.rs     # Multisig release: NFT->buyer, funds->seller+treasury
+    refund_buyer.rs         # Multisig refund: funds->buyer, NFT->seller
+    update_price.rs         # Seller updates listing price
+    cancel_escrow.rs        # Seller cancels listing
+  utils/
+    squads_gate.rs          # Squads v4 CPI origin verification
+```
+
+## Build & Test
 
 ```bash
-$ cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-...
+# Install dependencies
+yarn
+
+# Build
+anchor build
+
+# Run tests
+anchor test
+
+# Deploy (requires funded wallet)
+anchor deploy --provider.cluster devnet
 ```
 
-Install latest `anchor` version:
+## Integration
 
-```bash
-$ avm install 0.27.0
-...
-$ avm use 0.27.0
-...
-```
+The program is consumed by the [LuxHub web platform](https://luxhub.gold) ([source](https://github.com/yoandryx/LuxHub)) which provides:
 
-> If you haven't installed `cargo`, please refer to this [doc](https://book.solmeet.dev/notes/solana-starter-kit#install-rust-and-solana-cli) for installation steps.
+- Vendor onboarding and NFT minting (SPL Token + Irys metadata)
+- Admin dashboard for escrow management
+- Squads multisig proposal creation and execution
+- Buyer purchase flow with on-chain transaction verification
+- Dispute system with 7-day SLA and automatic timeout enforcement
+- Token pools via Bags API for community-funded listings
 
-#### Extra Dependencies on Linux (Optional)
+## License
 
-You may have to install some extra dependencies on Linux (ex. Ubuntu):
-
-```bash
-$ sudo apt-get update && sudo apt-get upgrade && sudo apt-get install -y pkg-config build-essential libudev-dev
-...
-```
-
-#### Verify the Installation
-
-Check if Anchor is successfully installed:
-
-```bash
-$ anchor --version
-anchor-cli 0.27.0
-```
-
-### Install Dependencies
-
-Next, install dependencies:
-
-```
-$ yarn
-```
-
-### Build `anchor-escrow`
-
-#### Update `program_id`
-
-Get the public key of the deploy key. This keypair is generated automatically so a different key is exptected:
-
-```bash
-$ anchor keys list
-anchor_escrow: Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS
-```
-
-Replace the default value of `program_id` with this new value:
-
-```toml
-# Anchor.toml
-
-[programs.localnet]
-anchor_escrow = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
-
-...
-```
-
-```rust
-// lib.rs
-
-...
-
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
-
-...
-```
-
-Build the program:
-
-```
-$ anchor build
-```
-
-### Deploy `anchor-escrow`
-
-Let's deploy the program. Notice that `anchor-escrow` will be deployed on a [mainnet-fork](https://github.com/DappioWonderland/solana) test validator run by Dappio:
-
-```
-$ solana config set --url localhost
-...
-```
-
-```
-$ anchor deploy
-...
-
-Program Id: Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS
-
-Deploy success
-```
-
-Finally, run the test:
-
-```
-$ anchor test --skip-deploy --skip-build --skip-local-validator
-```
+See [LICENSE](./LICENSE).
